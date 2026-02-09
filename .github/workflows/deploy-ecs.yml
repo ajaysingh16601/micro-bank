@@ -1,0 +1,165 @@
+name: Deploy to AWS ECS
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY_GATEWAY: banking/gateway
+  ECR_REPOSITORY_AUTH: banking/auth-service
+  ECR_REPOSITORY_WALLET: banking/wallet-service
+  ECR_REPOSITORY_NOTIFICATION: banking/notification-service
+  ECS_CLUSTER: banking-cluster
+  
+jobs:
+  # Build and push Docker images
+  build-and-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    outputs:
+      gateway-image: ${{ steps.build-gateway.outputs.image }}
+      auth-image: ${{ steps.build-auth.outputs.image }}
+      wallet-image: ${{ steps.build-wallet.outputs.image }}
+      notification-image: ${{ steps.build-notification.outputs.image }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      
+      - name: Build and push Gateway image
+        id: build-gateway
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_GATEWAY:$IMAGE_TAG ./gateway
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_GATEWAY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_GATEWAY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+      
+      - name: Build and push Auth Service image
+        id: build-auth
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_AUTH:$IMAGE_TAG ./services/auth-service
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_AUTH:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_AUTH:$IMAGE_TAG" >> $GITHUB_OUTPUT
+      
+      - name: Build and push Wallet Service image
+        id: build-wallet
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_WALLET:$IMAGE_TAG ./services/wallet-service
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_WALLET:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_WALLET:$IMAGE_TAG" >> $GITHUB_OUTPUT
+      
+      - name: Build and push Notification Service image
+        id: build-notification
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_NOTIFICATION:$IMAGE_TAG ./services/notification-service
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_NOTIFICATION:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_NOTIFICATION:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  # Deploy to ECS
+  deploy:
+    name: Deploy to ECS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Fill in new image ID for Gateway task definition
+        id: task-def-gateway
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: .aws/task-definition-gateway.json
+          container-name: gateway
+          image: ${{ needs.build-and-push.outputs.gateway-image }}
+      
+      - name: Deploy Gateway to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-gateway.outputs.task-definition }}
+          service: gateway-service
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+      
+      - name: Fill in new image ID for Auth Service task definition
+        id: task-def-auth
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: .aws/task-definition-auth.json
+          container-name: auth-service
+          image: ${{ needs.build-and-push.outputs.auth-image }}
+      
+      - name: Deploy Auth Service to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-auth.outputs.task-definition }}
+          service: auth-service
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+      
+      - name: Fill in new image ID for Wallet Service task definition
+        id: task-def-wallet
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: .aws/task-definition-wallet.json
+          container-name: wallet-service
+          image: ${{ needs.build-and-push.outputs.wallet-image }}
+      
+      - name: Deploy Wallet Service to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-wallet.outputs.task-definition }}
+          service: wallet-service
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+      
+      - name: Fill in new image ID for Notification Service task definition
+        id: task-def-notification
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: .aws/task-definition-notification.json
+          container-name: notification-service
+          image: ${{ needs.build-and-push.outputs.notification-image }}
+      
+      - name: Deploy Notification Service to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-notification.outputs.task-definition }}
+          service: notification-service
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
