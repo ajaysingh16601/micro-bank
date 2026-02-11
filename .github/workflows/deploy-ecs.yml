@@ -2,9 +2,13 @@ name: Deploy to AWS ECS
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - develop
 
 env:
   AWS_REGION: ap-south-1
@@ -32,7 +36,7 @@ jobs:
         uses: actions/checkout@v3
       
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -40,8 +44,13 @@ jobs:
       
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
       
+      - name: Debug Gateway Image
+        run: echo "Gateway image is ${{ steps.build-gateway.outputs.image }}"
+      - name: Debug Gateway Image Output
+        run: echo "Gateway image is: ${{ needs.build-and-push.outputs.gateway-image }}"
+
       - name: Build and push Gateway image
         id: build-gateway
         env:
@@ -50,7 +59,11 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_GATEWAY:$IMAGE_TAG ./gateway
           docker push $ECR_REGISTRY/$ECR_REPOSITORY_GATEWAY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_GATEWAY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY_GATEWAY:$IMAGE_TAG
+          echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
+      
+      - name: Debug Gateway Image
+        run: echo "Gateway image is ${{ steps.build-gateway.outputs.image }}"
       
       - name: Build and push Auth Service image
         id: build-auth
@@ -60,7 +73,11 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_AUTH:$IMAGE_TAG ./services/auth-service
           docker push $ECR_REGISTRY/$ECR_REPOSITORY_AUTH:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_AUTH:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY_AUTH:$IMAGE_TAG
+          echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
+      
+      - name: Debug Auth Image
+        run: echo "Auth image is ${{ steps.build-auth.outputs.image }}"
       
       - name: Build and push Wallet Service image
         id: build-wallet
@@ -70,7 +87,11 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_WALLET:$IMAGE_TAG ./services/wallet-service
           docker push $ECR_REGISTRY/$ECR_REPOSITORY_WALLET:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_WALLET:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY_WALLET:$IMAGE_TAG
+          echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
+      
+      - name: Debug Wallet Image
+        run: echo "Wallet image is ${{ steps.build-wallet.outputs.image }}"
       
       - name: Build and push Notification Service image
         id: build-notification
@@ -80,7 +101,11 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_NOTIFICATION:$IMAGE_TAG ./services/notification-service
           docker push $ECR_REGISTRY/$ECR_REPOSITORY_NOTIFICATION:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_NOTIFICATION:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY_NOTIFICATION:$IMAGE_TAG
+          echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
+
+      - name: Debug Notification Image
+        run: echo "Notification image is ${{ steps.build-notification.outputs.image }}"
 
   # Deploy to ECS
   deploy:
@@ -94,7 +119,7 @@ jobs:
         uses: actions/checkout@v3
       
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
