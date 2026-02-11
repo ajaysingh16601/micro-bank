@@ -49,7 +49,7 @@ jobs:
       - name: Debug Gateway Image
         run: echo "Gateway image is ${{ steps.build-gateway.outputs.image }}"
       - name: Debug Gateway Image Output
-        run: echo "Gateway image is: ${{ needs.build-and-push.outputs.gateway-image }}"
+        run: echo "Gateway image is ${{ needs.build-and-push.outputs.gateway-image }}"
 
       - name: Build and push Gateway image
         id: build-gateway
