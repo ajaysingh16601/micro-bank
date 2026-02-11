@@ -23,7 +23,7 @@ jobs:
   build-and-push:
     name: Build and Push Images
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     
     outputs:
       gateway-image: ${{ steps.build-gateway.outputs.image }}
@@ -45,11 +45,6 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-      
-      - name: Debug Gateway Image
-        run: echo "Gateway image is ${{ steps.build-gateway.outputs.image }}"
-      - name: Debug Gateway Image Output
-        run: echo "Gateway image is ${{ needs.build-and-push.outputs.gateway-image }}"
 
       - name: Build and push Gateway image
         id: build-gateway
@@ -112,7 +107,7 @@ jobs:
     name: Deploy to ECS
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     
     steps:
       - name: Checkout code
