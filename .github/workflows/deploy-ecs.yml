@@ -107,9 +107,7 @@ jobs:
     name: Deploy to ECS
     needs: build-and-push
     runs-on: ubuntu-latest
-    # TEMPORARILY DISABLED - Create ECS services in AWS Console first!
-    if: false  # Change to: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-    
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -133,7 +131,7 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def-gateway.outputs.task-definition }}
-          service: gateway-service
+          service: banking-gateway-service-kjasbe0z
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
       
@@ -149,7 +147,7 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def-auth.outputs.task-definition }}
-          service: auth-service
+          service: banking-auth-service-48ccrc0b
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
       
@@ -165,7 +163,7 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def-wallet.outputs.task-definition }}
-          service: wallet-service
+          service: banking-wallet-service-ov3uhabx
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
       
@@ -181,6 +179,6 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def-notification.outputs.task-definition }}
-          service: notification-service
+          service: banking-notification-service-o79u3gnf
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
