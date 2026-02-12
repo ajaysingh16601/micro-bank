@@ -24,7 +24,7 @@ async function startServer() {
     await userEventsConsumer.startConsuming();
     logger.info('Event consumers started');
 
-    server = app.listen(config.port, () => {
+    server = app.listen(config.port, '0.0.0.0', () => {
       logger.info(`Wallet Service running on port ${config.port}`);
       logger.info(`Environment: ${config.nodeEnv}`);
     });

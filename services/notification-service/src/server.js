@@ -13,7 +13,7 @@ async function startServer() {
     await rabbitmqConnection.connect();
     await eventsConsumer.startConsuming();
 
-    server = app.listen(config.port, () => {
+    server = app.listen(config.port, '0.0.0.0', () => {
       logger.info(`Notification Service running on port ${config.port}`);
     });
   } catch (error) {

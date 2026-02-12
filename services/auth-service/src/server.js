@@ -22,7 +22,7 @@ async function startServer() {
     logger.info('RabbitMQ connection established');
 
     // Start HTTP server
-    server = app.listen(config.port, () => {
+    server = app.listen(config.port, '0.0.0.0', () => {
       logger.info(`Auth Service running on port ${config.port}`);
       logger.info(`Environment: ${config.nodeEnv}`);
       logger.info(`Health check: http://localhost:${config.port}/health`);
