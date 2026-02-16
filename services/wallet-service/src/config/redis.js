@@ -14,6 +14,8 @@ class RedisClient {
         socket: {
           host: config.redis.host,
           port: config.redis.port,
+          tls: true,
+          rejectUnauthorized: false,
         },
         password: config.redis.password,
         database: config.redis.db,

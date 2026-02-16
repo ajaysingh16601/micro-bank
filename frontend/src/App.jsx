@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
-const API_URL = 'http://localhost';
+// const API_URL = 'http://localhost';
+const API_URL = 'http://banking-alb-123456789.ap-south-1.elb.amazonaws.com';
+
 
 function App() {
   const [user, setUser] = useState(null);
