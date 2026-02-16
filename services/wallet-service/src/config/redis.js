@@ -10,16 +10,28 @@ class RedisClient {
 
   async connect() {
     try {
-      this.client = redis.createClient({
+      const redisConfig = {
         socket: {
           host: config.redis.host,
           port: config.redis.port,
-          tls: true,
-          rejectUnauthorized: false,
+          connectTimeout: 10000,
+          reconnectStrategy: (retries) => {
+            if (retries > 10) {
+              logger.error('Max Redis reconnection attempts reached');
+              return new Error('Max retries reached');
+            }
+            return Math.min(retries * 100, 3000);
+          },
         },
-        password: config.redis.password,
         database: config.redis.db,
-      });
+      };
+
+      // Only add password if provided
+      if (config.redis.password) {
+        redisConfig.password = config.redis.password;
+      }
+
+      this.client = redis.createClient(redisConfig);
 
       this.client.on('error', (err) => {
         logger.error(`Redis Client Error: ${err.message}`);
